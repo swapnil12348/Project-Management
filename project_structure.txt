@@ -1,0 +1,69 @@
+﻿└── client/
+│   └── public/
+│   │   └── favicon.ico
+│   └── src/
+│   │   └── app/
+│   │   │   └── store.js
+│   │   └── assets/
+│   │   │   └── assets.js
+│   │   │   └── favicon.ico
+│   │   │   └── profile_img_a.svg
+│   │   │   └── profile_img_j.svg
+│   │   │   └── profile_img_o.svg
+│   │   │   └── schema.prisma
+│   │   │   └── workspace_img_default.png
+│   │   └── components/
+│   │   │   └── AddProjectMember.jsx
+│   │   │   └── CreateProjectDialog.jsx
+│   │   │   └── CreateTaskDialog.jsx
+│   │   │   └── InviteMemberDialog.jsx
+│   │   │   └── MyTasksSidebar.jsx
+│   │   │   └── Navbar.jsx
+│   │   │   └── ProjectAnalytics.jsx
+│   │   │   └── ProjectCalendar.jsx
+│   │   │   └── ProjectCard.jsx
+│   │   │   └── ProjectOverview.jsx
+│   │   │   └── ProjectSettings.jsx
+│   │   │   └── ProjectsSidebar.jsx
+│   │   │   └── ProjectTasks.jsx
+│   │   │   └── RecentActivity.jsx
+│   │   │   └── Sidebar.jsx
+│   │   │   └── StatsGrid.jsx
+│   │   │   └── TasksSummary.jsx
+│   │   │   └── WorkspaceDropdown.jsx
+│   │   └── features/
+│   │   │   └── themeSlice.js
+│   │   │   └── workspaceSlice.js
+│   │   └── pages/
+│   │   │   └── Dashboard.jsx
+│   │   │   └── Layout.jsx
+│   │   │   └── ProjectDetails.jsx
+│   │   │   └── Projects.jsx
+│   │   │   └── TaskDetails.jsx
+│   │   │   └── Team.jsx
+│   │   └── App.jsx
+│   │   └── index.css
+│   │   └── main.jsx
+│   └── .env
+│   └── CODE_OF_CONDUCT.md
+│   └── CONTRIBUTING.md
+│   └── eslint.config.js
+│   └── index.html
+│   └── LICENSE.md
+│   └── package-lock.json
+│   └── package.json
+│   └── README.md
+│   └── vite.config.js
+└── server/
+│   └── configs/
+│   │   └── prisma.js
+│   └── inngest/
+│   │   └── index.js
+│   └── prisma/
+│   │   └── prisma.config.js
+│   │   └── schema.prisma
+│   └── .env
+│   └── package-lock.json
+│   └── package.json
+│   └── server.js
+└── package-lock.json
