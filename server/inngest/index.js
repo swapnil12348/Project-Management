@@ -74,9 +74,24 @@ const syncWorkspaceCreation = inngest.createFunction(
     { event: 'clerk/organization.created' },
     async ({ event }) => {
         const { data } = event;
+        const ownerId = data.created_by;
 
-        // 1. Create/Update the Workspace
-        // Uses upsert to fix: "Unique constraint failed on the fields: (`id`)"
+        // --- 1. SAFETY CHECK: Ensure Owner Exists ---
+        const userExists = await prisma.user.findUnique({ where: { id: ownerId } });
+
+        if (!userExists) {
+            await prisma.user.create({
+                data: {
+                    id: ownerId,
+                    email: `temp_${ownerId}@placeholder.com`, // Temp email
+                    name: "Syncing User...", // Temp name
+                    image: "",
+                }
+            });
+            console.log(`Created placeholder user for ${ownerId}`);
+        }
+
+        // --- 2. CREATE WORKSPACE ---
         await prisma.workspace.upsert({
             where: { id: data.id },
             update: {
@@ -89,23 +104,21 @@ const syncWorkspaceCreation = inngest.createFunction(
                 name: data.name,
                 slug: data.slug,
                 image_url: data.image_url,
-                ownerId: data.created_by, // Matches schema: ownerId
+                ownerId: ownerId, // This is now guaranteed to exist
             }
         });
 
-        // 2. Add Creator as ADMIN Member
-        // Uses upsert on the Composite Key @@unique([userId, workspaceId])
-        // This prevents crashing if the webhook runs twice
+        // --- 3. ADD MEMBER ---
         await prisma.workspaceMember.upsert({
             where: {
                 userId_workspaceId: {
-                    userId: data.created_by,
+                    userId: ownerId,
                     workspaceId: data.id
                 }
             },
-            update: {}, // Do nothing if they are already a member
+            update: {}, 
             create: {
-                userId: data.created_by,
+                userId: ownerId,
                 workspaceId: data.id,
                 role: "ADMIN"
             }
@@ -150,20 +163,14 @@ const syncWorkspaceMemberCreation = inngest.createFunction(
     async ({ event }) => {
         const { data } = event;
         
-        // Map Clerk role to Prisma Enum (ADMIN / MEMBER)
-        // Clerk roles usually look like "org:admin" or "org:member"
         let roleEnum = "MEMBER";
         if (data.role === "org:admin") {
             roleEnum = "ADMIN";
         }
 
-        // The user ID who accepted the invite is usually in 'public_user_data.user_id'
-        // or sometimes directly on the object depending on API version.
-        // We fallback safely.
         const userId = data.public_user_data?.user_id || data.user_id;
 
         if (userId) {
-            // FIX: Was prisma.workspace.create, CHANGED TO prisma.workspaceMember
             await prisma.workspaceMember.upsert({
                 where: {
                     userId_workspaceId: {
