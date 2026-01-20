@@ -23,6 +23,13 @@ export const createProject = async (req, res) => {
         if (!workspace.members.some((member)=>member.userId===userId && member.role === "ADMIN")) {
             return res.status(403).json({message:"you dont have permission to create projects in this workspace"});
         }
+
+        // get team lead using email
+
+        const teamLead=await prisma.user.findUnique({
+            where:{email:team_lead},
+            select:{id:true}
+        })
         
     } catch (error) {
         console.log(error)
