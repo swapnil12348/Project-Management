@@ -31,6 +31,8 @@
 │   │   │   └── StatsGrid.jsx
 │   │   │   └── TasksSummary.jsx
 │   │   │   └── WorkspaceDropdown.jsx
+│   │   └── configs/
+│   │   │   └── api.js
 │   │   └── features/
 │   │   │   └── themeSlice.js
 │   │   │   └── workspaceSlice.js
@@ -53,17 +55,26 @@
 │   └── package-lock.json
 │   └── package.json
 │   └── README.md
+│   └── vercel.json
 │   └── vite.config.js
 └── server/
 │   └── configs/
 │   │   └── prisma.js
+│   └── controllers/
+│   │   └── workspaceController.js
 │   └── inngest/
 │   │   └── index.js
+│   └── middlewares/
+│   │   └── authMiddleware.js
 │   └── prisma/
 │   │   └── prisma.config.js
 │   │   └── schema.prisma
+│   └── routes/
+│   │   └── workspaceRoutes.js
 │   └── .env
 │   └── package-lock.json
 │   └── package.json
 │   └── server.js
+│   └── vercel.json
+└── .gitignore
 └── package-lock.json
