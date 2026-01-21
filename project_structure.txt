@@ -61,6 +61,7 @@
 │   └── configs/
 │   │   └── prisma.js
 │   └── controllers/
+│   │   └── projectController.js
 │   │   └── workspaceController.js
 │   └── inngest/
 │   │   └── index.js
