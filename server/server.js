@@ -10,8 +10,6 @@ import projectRouter from './routes/projectRoutes.js';
 import taskRouter from './routes/taskRoutes.js';
 import commentRouter from './routes/commentRoutes.js';
 
-
-
 const app = express();
 
 app.use(express.json());
@@ -24,11 +22,14 @@ app.get('/', (req, res)=>res.send('Server is live'))
 app.use("/api/inngest", serve({ client: inngest, functions }));
 
 //routes 
-app.use("/api/workspaces", protect,  workspaceRouter)
+app.use("/api/workspaces", protect, workspaceRouter)
 app.use("/api/projects", protect, projectRouter)
-app.use("/api/task", protect, taskRouter)
-app.use("/api/comments",protect,commentRouter)
 
-const PORT=process.env.PORT || 5000;
+// FIX: Changed "/api/task" to "/api/tasks"
+app.use("/api/tasks", protect, taskRouter) 
+
+app.use("/api/comments", protect, commentRouter)
+
+const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, ()=>console.log(`Server running on port ${PORT}`));

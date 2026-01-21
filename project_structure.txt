@@ -59,9 +59,12 @@
 │   └── vite.config.js
 └── server/
 │   └── configs/
+│   │   └── nodemailer.js
 │   │   └── prisma.js
 │   └── controllers/
+│   │   └── commentController.js
 │   │   └── projectController.js
+│   │   └── taskController.js
 │   │   └── workspaceController.js
 │   └── inngest/
 │   │   └── index.js
@@ -71,6 +74,9 @@
 │   │   └── prisma.config.js
 │   │   └── schema.prisma
 │   └── routes/
+│   │   └── commentRoutes.js
+│   │   └── projectRoutes.js
+│   │   └── taskRoutes.js
 │   │   └── workspaceRoutes.js
 │   └── .env
 │   └── package-lock.json
