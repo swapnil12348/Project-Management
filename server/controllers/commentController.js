@@ -46,11 +46,16 @@ export const addComment=async (req,res) => {
     
 } 
 
-// get comments ofr task
+// get comments for task
 
 export const getTaskComments = async (req,res) => {
     try {
         const {taskId}=req.params;
+        const comments = await prisma.comment.findMany({
+            where:{taskId}, include:{user:true}
+        })
+
+        res.json({comments})
 
         
     } catch (error) {
