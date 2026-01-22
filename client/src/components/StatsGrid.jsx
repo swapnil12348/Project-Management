@@ -1,8 +1,10 @@
 import { FolderOpen, CheckCircle, Users, AlertTriangle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
+import { useUser } from "@clerk/clerk-react"; // 1. Import useUser
 
 export default function StatsGrid() {
+    const { user } = useUser(); // 2. Get current user
     const currentWorkspace = useSelector(
         (state) => state?.workspace?.currentWorkspace || null
     );
@@ -51,31 +53,42 @@ export default function StatsGrid() {
     ];
 
     useEffect(() => {
-        if (currentWorkspace) {
+        if (currentWorkspace && user) {
             setStats({
                 totalProjects: currentWorkspace.projects.length,
+                
                 activeProjects: currentWorkspace.projects.filter(
                     (p) => p.status !== "CANCELLED" && p.status !== "COMPLETED"
                 ).length,
-                completedProjects: currentWorkspace.projects
-                    .filter((p) => p.status === "COMPLETED")
-                    .reduce((acc, project) => acc + project.tasks.length, 0),
+
+                // FIX: This should count Projects, not sum of tasks
+                completedProjects: currentWorkspace.projects.filter(
+                    (p) => p.status === "COMPLETED"
+                ).length,
+
+                // FIX: Compare task.assigneeId with user.id (Logged in user)
+                // Also ensures we don't count "DONE" tasks as active items (optional, but standard)
                 myTasks: currentWorkspace.projects.reduce(
                     (acc, project) =>
                         acc +
-                        project.tasks.filter(
-                            (t) => t.assignee?.email === currentWorkspace.owner.email
+                        (project.tasks || []).filter(
+                            (t) => t.assigneeId === user.id && t.status !== "DONE"
                         ).length,
                     0
                 ),
+
+                // FIX: Ensure date comparison is correct and ignore "DONE" tasks
                 overdueIssues: currentWorkspace.projects.reduce(
                     (acc, project) =>
-                        acc + project.tasks.filter((t) => t.due_date < new Date()).length,
+                        acc +
+                        (project.tasks || []).filter(
+                            (t) => new Date(t.due_date) < new Date() && t.status !== "DONE"
+                        ).length,
                     0
                 ),
             });
         }
-    }, [currentWorkspace]);
+    }, [currentWorkspace, user]);
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 my-9">
