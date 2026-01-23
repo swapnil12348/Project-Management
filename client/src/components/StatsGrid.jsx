@@ -1,10 +1,10 @@
 import { FolderOpen, CheckCircle, Users, AlertTriangle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
-import { useUser } from "@clerk/clerk-react"; // 1. Import useUser
+import { useUser } from "@clerk/clerk-react";
 
 export default function StatsGrid() {
-    const { user } = useUser(); // 2. Get current user
+    const { user } = useUser();
     const currentWorkspace = useSelector(
         (state) => state?.workspace?.currentWorkspace || null
     );
@@ -22,7 +22,7 @@ export default function StatsGrid() {
             icon: FolderOpen,
             title: "Total Projects",
             value: stats.totalProjects,
-            subtitle: `projects in ${currentWorkspace?.name}`,
+            subtitle: `projects in ${currentWorkspace?.name || "Workspace"}`,
             bgColor: "bg-blue-500/10",
             textColor: "text-blue-500",
         },
@@ -55,34 +55,31 @@ export default function StatsGrid() {
     useEffect(() => {
         if (currentWorkspace && user) {
             setStats({
-                totalProjects: currentWorkspace.projects.length,
+                totalProjects: currentWorkspace.projects?.length || 0,
                 
-                activeProjects: currentWorkspace.projects.filter(
+                activeProjects: (currentWorkspace.projects || []).filter(
                     (p) => p.status !== "CANCELLED" && p.status !== "COMPLETED"
                 ).length,
 
-                // FIX: This should count Projects, not sum of tasks
-                completedProjects: currentWorkspace.projects.filter(
+                completedProjects: (currentWorkspace.projects || []).filter(
                     (p) => p.status === "COMPLETED"
                 ).length,
 
-                // FIX: Compare task.assigneeId with user.id (Logged in user)
-                // Also ensures we don't count "DONE" tasks as active items (optional, but standard)
-                myTasks: currentWorkspace.projects.reduce(
+                myTasks: (currentWorkspace.projects || []).reduce(
                     (acc, project) =>
                         acc +
                         (project.tasks || []).filter(
-                            (t) => t.assigneeId === user.id && t.status !== "DONE"
+                            (t) => (t.assigneeId === user.id || t.assignee?.id === user.id) && t.status !== "DONE"
                         ).length,
                     0
                 ),
 
-                // FIX: Ensure date comparison is correct and ignore "DONE" tasks
-                overdueIssues: currentWorkspace.projects.reduce(
+                // FIX: Added due_date existence check
+                overdueIssues: (currentWorkspace.projects || []).reduce(
                     (acc, project) =>
                         acc +
                         (project.tasks || []).filter(
-                            (t) => new Date(t.due_date) < new Date() && t.status !== "DONE"
+                            (t) => t.due_date && new Date(t.due_date) < new Date() && t.status !== "DONE"
                         ).length,
                     0
                 ),

@@ -1,112 +1,91 @@
-
-
-
-
-//get all workspaces for user
-
-import { err } from "inngest/types";
 import prisma from "../configs/prisma.js"
 
-export const getUserWorkspaces = async (req,res) => {
+// get all workspaces for user
+export const getUserWorkspaces = async (req, res) => {
     try {
-        const {userId}=await req.auth()
-        const workspaces  = await prisma.workspace.findMany({
-            where:{
-                members:{some:{userId:userId}}
+        const { userId } = req.auth; // FIX
+        const workspaces = await prisma.workspace.findMany({
+            where: {
+                members: { some: { userId: userId } }
             },
-            include:{
-                members:{include:{user:true}},
-                projects:{
-                    include:{
-                        tasks:{include:{assignee:true, comments:{include:{user:true}}}},
-                        members:{include:{user:true}}
+            include: {
+                members: { include: { user: true } },
+                projects: {
+                    include: {
+                        tasks: { include: { assignee: true, comments: { include: { user: true } } } },
+                        members: { include: { user: true } }
                     }
                 },
-                owner:true
+                owner: true
             }
         });
-        res.json({workspaces})
+        res.json({ workspaces })
 
     } catch (error) {
         console.log(error)
-        res.status(500).json({message:error.code||error.message})
-        
+        res.status(500).json({ message: error.code || error.message })
     }
-    
 }
 
-// add memeber to workspace
-
-export const addMember=async (req,res) => {
+// add member to workspace
+export const addMember = async (req, res) => {
     try {
-        const {userId}=await req.auth()
-        const {email, role, workspaceId, message}=req.body;
+        const { userId } = req.auth; // FIX
+        const { email, role, workspaceId, message } = req.body;
 
-        // check if user exists
-
-        const user = await prisma.user.findUnique({
-            where:{email}
+        // check if target user exists in our DB
+        const targetUser = await prisma.user.findUnique({
+            where: { email }
         })
 
-        if (!user) {
-
-            return res.status(404).json({message:"user not found"})
-            
+        if (!targetUser) {
+            // NOTE: In production, you might want to invite via Clerk email here
+            return res.status(404).json({ message: "User not found in system. Please invite them via Clerk first." })
         }
 
-        if (!workspaceId||!role) {
-            return res.status(400).json({message:"Missing required parameters"})
-            
+        if (!workspaceId || !role) {
+            return res.status(400).json({ message: "Missing required parameters" })
         }
 
         if (!["ADMIN", "MEMBER"].includes(role)) {
-            return res.status(400).json({message:"Invalid role"})
-            
+            return res.status(400).json({ message: "Invalid role" })
         }
 
-        //fetch workspace
-
-        const workspace=await prisma.workspace.findUnique({
-            where:{id:workspaceId},include:{members:true}
+        const workspace = await prisma.workspace.findUnique({
+            where: { id: workspaceId }, include: { members: true }
         })
 
         if (!workspace) {
-            return res.status(404).json({message:"Workspace not found"})
-            
+            return res.status(404).json({ message: "Workspace not found" })
         }
 
-        //check creator has admin role
-
-        if (!workspace.members.find((member)=>member.userId === userId && member.role === "ADMIN")) {
-            return res.status(401).json({message:"You do not have admin privileges"})
-            
+        // check creator has admin role
+        if (!workspace.members.find((member) => member.userId === userId && member.role === "ADMIN")) {
+            return res.status(401).json({ message: "You do not have admin privileges" })
         }
 
-        // check if user is already member
+        // check if target user is already member
+        // FIX: Check targetUser.id, not userId (which is you)
+        const existingMember = workspace.members.find((member) => member.userId === targetUser.id);
 
-        const existingMemeber=workspace.members.find((member)=>member.userId === userId);
-
-        if (existingMemeber) {
-            return res.status(400).json({message:"User is already a member of this workspace"})
-
+        if (existingMember) {
+            return res.status(400).json({ message: "User is already a member of this workspace" })
         }
 
-        const member = await prisma.workspace.create({
-            data:{
-                userId:user.id,
+        // FIX: Use workspaceMember.create, NOT workspace.create
+        const member = await prisma.workspaceMember.create({
+            data: {
+                userId: targetUser.id,
                 workspaceId,
                 role,
-                message
+                message: message || ""
             }
         })
 
-        res.json({member, message:"Member added successfully"})
-        
+        res.json({ member, message: "Member added successfully" })
+
     } catch (error) {
-
         console.log(error)
-        res.status(500).json({message:error.code||error.message})
-
+        res.status(500).json({ message: error.code || error.message })
     }
-    
 }

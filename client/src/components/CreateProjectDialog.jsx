@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { XIcon } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
-import {toast} from "react-hot-toast"
+import { toast } from "react-hot-toast"
 import api from "../configs/api";
 import { useAuth } from "@clerk/clerk-react";
 import { addProject } from "../features/workspaceSlice";
 
 const CreateProjectDialog = ({ isDialogOpen, setIsDialogOpen }) => {
 
-    const {getToken}=useAuth()
+    const { getToken } = useAuth()
     const dispatch = useDispatch()
 
     const { currentWorkspace } = useSelector((state) => state.workspace);
@@ -31,23 +31,41 @@ const CreateProjectDialog = ({ isDialogOpen, setIsDialogOpen }) => {
         e.preventDefault();
         try {
             if (!formData.team_lead) {
-                return toast.error("Please selec t a team lead")
-                
+                return toast.error("Please select a team lead")
             }
             setIsSubmitting(true)
 
-            const {data} = await api.post("/api/projects",{workspaceId: currentWorkspace.id, ...formData}, {headers:{Authorization: `Bearer ${await getToken()}`}})
+            // Ensure workspaceId is sent
+            const payload = {
+                workspaceId: currentWorkspace?.id,
+                ...formData
+            };
+
+            const { data } = await api.post("/api/projects", payload, { 
+                headers: { Authorization: `Bearer ${await getToken()}` } 
+            });
+            
             dispatch(addProject(data.project))
             setIsDialogOpen(false)
+            
+            // Reset form
+            setFormData({
+                name: "", description: "", status: "PLANNING", priority: "MEDIUM",
+                start_date: "", end_date: "", team_members: [], team_lead: "", progress: 0,
+            });
+
         } catch (error) {
             toast.error(error?.response?.data?.message || error.message)
-        }finally{
+        } finally {
             setIsSubmitting(false)
         }
     };
 
     const removeTeamMember = (email) => {
-        setFormData((prev) => ({ ...prev, team_members: prev.team_members.filter(m => m !== email) }));
+        setFormData((prev) => ({ 
+            ...prev, 
+            team_members: prev.team_members.filter(m => m !== email) 
+        }));
     };
 
     if (!isDialogOpen) return null;
@@ -110,15 +128,29 @@ const CreateProjectDialog = ({ isDialogOpen, setIsDialogOpen }) => {
                         </div>
                         <div>
                             <label className="block text-sm mb-1">End Date</label>
-                            <input type="date" value={formData.end_date} onChange={(e) => setFormData({ ...formData, end_date: e.target.value })} min={formData.start_date && new Date(formData.start_date).toISOString().split('T')[0]} className="w-full px-3 py-2 rounded dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 mt-1 text-zinc-900 dark:text-zinc-200 text-sm" />
+                            <input type="date" value={formData.end_date} onChange={(e) => setFormData({ ...formData, end_date: e.target.value })} min={formData.start_date} className="w-full px-3 py-2 rounded dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 mt-1 text-zinc-900 dark:text-zinc-200 text-sm" />
                         </div>
                     </div>
 
                     {/* Lead */}
                     <div>
                         <label className="block text-sm mb-1">Project Lead</label>
-                        <select value={formData.team_lead} onChange={(e) => setFormData({ ...formData, team_lead: e.target.value, team_members: e.target.value ? [...new Set([...formData.team_members, e.target.value])] : formData.team_members, })} className="w-full px-3 py-2 rounded dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 mt-1 text-zinc-900 dark:text-zinc-200 text-sm" >
-                            <option value="">No lead</option>
+                        <select 
+                            value={formData.team_lead} 
+                            onChange={(e) => {
+                                const newLead = e.target.value;
+                                setFormData(prev => ({ 
+                                    ...prev, 
+                                    team_lead: newLead,
+                                    // Add lead to team members automatically if not present
+                                    team_members: newLead && !prev.team_members.includes(newLead) 
+                                        ? [...prev.team_members, newLead] 
+                                        : prev.team_members
+                                }));
+                            }} 
+                            className="w-full px-3 py-2 rounded dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 mt-1 text-zinc-900 dark:text-zinc-200 text-sm" 
+                        >
+                            <option value="">Select a lead</option>
                             {currentWorkspace?.members?.map((member) => (
                                 <option key={member.user.email} value={member.user.email}>
                                     {member.user.email}
@@ -136,12 +168,13 @@ const CreateProjectDialog = ({ isDialogOpen, setIsDialogOpen }) => {
                                     setFormData((prev) => ({ ...prev, team_members: [...prev.team_members, e.target.value] }));
                                 }
                             }}
+                            value="" // Always reset to empty so you can select the same person again if you remove them
                         >
                             <option value="">Add team members</option>
                             {currentWorkspace?.members
-                                ?.filter((email) => !formData.team_members.includes(email))
+                                ?.filter((member) => !formData.team_members.includes(member.user.email)) // FIX: Use member.user.email
                                 .map((member) => (
-                                    <option key={member.user.email} value={member.email}>
+                                    <option key={member.user.email} value={member.user.email}> {/* FIX: Use member.user.email */}
                                         {member.user.email}
                                     </option>
                                 ))}

@@ -1,16 +1,22 @@
 import { useMemo } from "react";
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts"; // Added Tooltip
 import { CheckCircle, Clock, AlertTriangle, Users, ArrowRightIcon } from "lucide-react";
+import { useSelector } from "react-redux"; // Added to detect theme
 
-// Colors for charts and priorities
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
-const PRIORITY_COLORS = {
-    LOW: "text-red-600 bg-red-200 dark:text-red-500 dark:bg-red-600",
-    MEDIUM: "text-blue-600 bg-blue-200 dark:text-blue-500 dark:bg-blue-600",
-    HIGH: "text-emerald-600 bg-emerald-200 dark:text-emerald-500 dark:bg-emerald-600",
+
+// Separated text colors for Icons vs Backgrounds for Badges
+const PRIORITY_STYLES = {
+    LOW: { text: "text-red-600 dark:text-red-400", bar: "bg-red-600" },
+    MEDIUM: { text: "text-blue-600 dark:text-blue-400", bar: "bg-blue-600" },
+    HIGH: { text: "text-emerald-600 dark:text-emerald-400", bar: "bg-emerald-600" },
 };
 
 const ProjectAnalytics = ({ project, tasks }) => {
+    
+    const { theme } = useSelector(state => state.theme); // Get theme for Charts
+    const isDark = theme === "dark";
+
     const { stats, statusData, typeData, priorityData } = useMemo(() => {
         const now = new Date();
         const total = tasks.length;
@@ -31,7 +37,11 @@ const ProjectAnalytics = ({ project, tasks }) => {
             if (t.status === "DONE") stats.completed++;
             if (t.status === "IN_PROGRESS") stats.inProgress++;
             if (t.status === "TODO") stats.todo++;
-            if (new Date(t.due_date) < now && t.status !== "DONE") stats.overdue++;
+            
+            // FIX: Check if date exists before comparing
+            if (t.due_date && new Date(t.due_date) < now && t.status !== "DONE") {
+                stats.overdue++;
+            }
 
             if (statusMap[t.status] !== undefined) statusMap[t.status]++;
             if (typeMap[t.type] !== undefined) typeMap[t.type]++;
@@ -83,6 +93,10 @@ const ProjectAnalytics = ({ project, tasks }) => {
         },
     ];
 
+    // Chart Colors based on theme
+    const axisColor = isDark ? "#a1a1aa" : "#52525b"; // zinc-400 vs zinc-600
+    const gridColor = isDark ? "#3f3f46" : "#e4e4e7"; // zinc-700 vs zinc-200
+
     return (
         <div className="space-y-6">
             {/* Metrics */}
@@ -90,11 +104,11 @@ const ProjectAnalytics = ({ project, tasks }) => {
                 {metrics.map((m, i) => (
                     <div
                         key={i}
-                        className="not-dark:bg-white dark:bg-gradient-to-br dark:from-zinc-800/70 dark:to-zinc-900/50 border border-zinc-300 dark:border-zinc-800 rounded-lg p-6"
+                        className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-6"
                     >
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-zinc-600 dark:text-zinc-400 text-sm">{m.label}</p>
+                                <p className="text-zinc-500 dark:text-zinc-400 text-sm">{m.label}</p>
                                 <p className={`text-xl font-bold ${m.color}`}>{m.value}</p>
                             </div>
                             <div className={`p-2 rounded-md ${m.bg}`}>{m.icon}</div>
@@ -106,24 +120,32 @@ const ProjectAnalytics = ({ project, tasks }) => {
             {/* Charts */}
             <div className="grid lg:grid-cols-2 gap-6">
                 {/* Tasks by Status */}
-                <div className="not-dark:bg-white dark:bg-gradient-to-br dark:from-zinc-800/70 dark:to-zinc-900/50 border border-zinc-300 dark:border-zinc-800 rounded-lg p-6">
+                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-6">
                     <h2 className="text-zinc-900 dark:text-white mb-4 font-medium">Tasks by Status</h2>
                     <ResponsiveContainer width="100%" height={300}>
                         <BarChart data={statusData}>
                             <XAxis
                                 dataKey="name"
-                                tick={{ fill: "#52525b", fontSize: 12 }}
-                                axisLine={{ stroke: "#d4d4d8" }}
-                                dark={{ stroke: "#27272a" }}
+                                tick={{ fill: axisColor, fontSize: 12 }}
+                                axisLine={{ stroke: gridColor }}
+                                tickLine={false}
                             />
-                            <YAxis tick={{ fill: "#52525b", fontSize: 12 }} axisLine={{ stroke: "#d4d4d8" }} />
-                            <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                            <YAxis 
+                                tick={{ fill: axisColor, fontSize: 12 }} 
+                                axisLine={{ stroke: gridColor }} 
+                                tickLine={false}
+                            />
+                            <Tooltip 
+                                contentStyle={{ backgroundColor: isDark ? '#18181b' : '#fff', borderColor: gridColor }}
+                                itemStyle={{ color: isDark ? '#fff' : '#000' }}
+                            />
+                            <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={40} />
                         </BarChart>
                     </ResponsiveContainer>
                 </div>
 
                 {/* Tasks by Type */}
-                <div className="not-dark:bg-white dark:bg-gradient-to-br dark:from-zinc-800/70 dark:to-zinc-900/50 border border-zinc-300 dark:border-zinc-800 rounded-lg p-6">
+                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-6">
                     <h2 className="text-zinc-900 dark:text-white mb-4 font-medium">Tasks by Type</h2>
                     <ResponsiveContainer width="100%" height={300}>
                         <PieChart>
@@ -134,38 +156,45 @@ const ProjectAnalytics = ({ project, tasks }) => {
                                 cx="50%"
                                 cy="50%"
                                 outerRadius={100}
+                                innerRadius={60} // Added innerRadius for modern Donut look
+                                paddingAngle={5}
                                 label={({ name, value }) => `${name}: ${value}`}
                             >
                                 {typeData.map((_, i) => (
-                                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                                    <Cell key={i} fill={COLORS[i % COLORS.length]} stroke={isDark ? "#18181b" : "#fff"} />
                                 ))}
                             </Pie>
+                            <Tooltip 
+                                contentStyle={{ backgroundColor: isDark ? '#18181b' : '#fff', borderColor: gridColor }}
+                                itemStyle={{ color: isDark ? '#fff' : '#000' }}
+                            />
                         </PieChart>
                     </ResponsiveContainer>
                 </div>
             </div>
 
             {/* Priority Breakdown */}
-            <div className="not-dark:bg-white dark:bg-gradient-to-br dark:from-zinc-800/70 dark:to-zinc-900/50 border border-zinc-300 dark:border-zinc-800 rounded-lg p-6">
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-6">
                 <h2 className="text-zinc-900 dark:text-white mb-4 font-medium">Tasks by Priority</h2>
                 <div className="space-y-4">
                     {priorityData.map((p) => (
                         <div key={p.name} className="space-y-2">
                             <div className="flex justify-between items-center">
                                 <div className="flex items-center gap-2">
-                                    <ArrowRightIcon className={`size-3.5 ${PRIORITY_COLORS[p.name]} bg-transparent dark:bg-transparent`} />
-                                    <span className="text-zinc-900 dark:text-zinc-200 capitalize">{p.name.toLowerCase()}</span>
+                                    {/* FIX: Corrected Icon Color Logic */}
+                                    <ArrowRightIcon className={`size-3.5 ${PRIORITY_STYLES[p.name].text}`} />
+                                    <span className="text-zinc-700 dark:text-zinc-300 capitalize">{p.name.toLowerCase()}</span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <span className="text-zinc-600 dark:text-zinc-400 text-sm">{p.value} tasks</span>
-                                    <span className="px-2 py-0.5 border border-zinc-400 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 text-xs rounded">
+                                    <span className="text-zinc-500 dark:text-zinc-400 text-sm">{p.value} tasks</span>
+                                    <span className="px-2 py-0.5 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 text-xs rounded">
                                         {p.percentage}%
                                     </span>
                                 </div>
                             </div>
-                            <div className="w-full bg-zinc-300 dark:bg-zinc-800 rounded-full h-1.5">
+                            <div className="w-full bg-zinc-100 dark:bg-zinc-800 rounded-full h-1.5">
                                 <div
-                                    className={`h-1.5 rounded-full ${PRIORITY_COLORS[p.name]}`}
+                                    className={`h-1.5 rounded-full ${PRIORITY_STYLES[p.name].bar}`}
                                     style={{ width: `${p.percentage}%` }}
                                 />
                             </div>

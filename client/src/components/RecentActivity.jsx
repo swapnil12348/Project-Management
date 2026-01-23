@@ -22,11 +22,15 @@ const RecentActivity = () => {
     const { currentWorkspace } = useSelector((state) => state.workspace);
 
     const getTasksFromCurrentWorkspace = () => {
+        if (!currentWorkspace?.projects) return; // Safety Check
 
-        if (!currentWorkspace) return;
+        // FlatMap tasks and sort by updated date (Recent first)
+        const allTasks = currentWorkspace.projects.flatMap((project) => 
+            project.tasks || []
+        ).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
+         .slice(0, 10); // Limit to 10 items for performance
 
-        const tasks = currentWorkspace.projects.flatMap((project) => project.tasks.map((task) => task));
-        setTasks(tasks);
+        setTasks(allTasks);
     };
 
     useEffect(() => {
@@ -61,7 +65,7 @@ const RecentActivity = () => {
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-start justify-between mb-2">
-                                                <h4 className="text-zinc-800 dark:text-zinc-200 truncate">
+                                                <h4 className="text-zinc-800 dark:text-zinc-200 truncate font-medium">
                                                     {task.title}
                                                 </h4>
                                                 <span className={`ml-2 px-2 py-1 rounded text-xs ${statusColors[task.status] || "bg-zinc-300 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300"}`}>
@@ -72,14 +76,15 @@ const RecentActivity = () => {
                                                 <span className="capitalize">{task.type.toLowerCase()}</span>
                                                 {task.assignee && (
                                                     <div className="flex items-center gap-1">
-                                                        <div className="w-4 h-4 bg-zinc-300 dark:bg-zinc-700 rounded-full flex items-center justify-center text-[10px] text-zinc-800 dark:text-zinc-200">
-                                                            {task.assignee.name[0].toUpperCase()}
+                                                        <div className="w-4 h-4 bg-zinc-300 dark:bg-zinc-700 rounded-full flex items-center justify-center text-[10px] text-zinc-800 dark:text-zinc-200 font-bold">
+                                                            {task.assignee.name?.[0]?.toUpperCase() || "?"}
                                                         </div>
-                                                        {task.assignee.name}
+                                                        {task.assignee.name || "Unknown"}
                                                     </div>
                                                 )}
-                                                <span>
-                                                    {format(new Date(task.updatedAt), "MMM d, h:mm a")}
+                                                <span className="text-zinc-400 dark:text-zinc-500">
+                                                    {/* Safety for formatting */}
+                                                    {task.updatedAt ? format(new Date(task.updatedAt), "MMM d, h:mm a") : ""}
                                                 </span>
                                             </div>
                                         </div>

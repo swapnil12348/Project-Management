@@ -4,8 +4,7 @@ import { useSelector } from "react-redux";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { CalendarIcon, MessageCircle, PenIcon } from "lucide-react";
-import { assets } from "../assets/assets";
-import {useAuth, useUser} from '@clerk/clerk-react';
+import { useAuth, useUser } from '@clerk/clerk-react';
 import api from "../configs/api";
 
 const TaskDetails = () => {
@@ -14,8 +13,8 @@ const TaskDetails = () => {
     const projectId = searchParams.get("projectId");
     const taskId = searchParams.get("taskId");
 
-    const {user}=useUser()
-    const {getToken}=useAuth()
+    const { user } = useUser();
+    const { getToken } = useAuth();
     const [task, setTask] = useState(null);
     const [project, setProject] = useState(null);
     const [comments, setComments] = useState([]);
@@ -25,31 +24,37 @@ const TaskDetails = () => {
     const { currentWorkspace } = useSelector((state) => state.workspace);
 
     const fetchComments = async () => {
-        if (!taskId) {return
-            
-        }
+        if (!taskId) return;
 
         try {
             const token = await getToken();
-            const {data}=await api.get(`/api/comments/${taskId}`, {headers:{Authorization:`Bearer ${token}`}})
+            const { data } = await api.get(`/api/comments/${taskId}`, { headers: { Authorization: `Bearer ${token}` } })
             setComments(data.comments || []);
         } catch (error) {
-            toast.error(error?.response?.data?.message || error.message);
+            // Optional: Don't toast error on background polling
             console.error(error);
-            
         }
-
     };
 
     const fetchTaskDetails = async () => {
         setLoading(true);
-        if (!projectId || !taskId) return;
+        if (!projectId || !taskId || !currentWorkspace) {
+            setLoading(false);
+            return;
+        }
 
-        const proj = currentWorkspace.projects.find((p) => p.id === projectId);
-        if (!proj) return;
+        // Safety Check
+        const proj = currentWorkspace.projects?.find((p) => p.id === projectId);
+        if (!proj) {
+            setLoading(false);
+            return;
+        }
 
-        const tsk = proj.tasks.find((t) => t.id === taskId);
-        if (!tsk) return;
+        const tsk = proj.tasks?.find((t) => t.id === taskId);
+        if (!tsk) {
+            setLoading(false);
+            return;
+        }
 
         setTask(tsk);
         setProject(proj);
@@ -60,35 +65,49 @@ const TaskDetails = () => {
         if (!newComment.trim()) return;
 
         try {
-
             toast.loading("Adding comment...");
             const token = await getToken();
-            const {data}=await api.post('/api/comments', {taskId: task.id, content:newComment}, {headers:{Authorization:`Bearer ${token}`}})
-
+            const { data } = await api.post('/api/comments', { taskId: task.id, content: newComment }, { headers: { Authorization: `Bearer ${token}` } })
 
             setComments((prev) => [...prev, data.comment]);
             setNewComment("");
-            toast.dismissAll();
+            toast.dismiss();
             toast.success("Comment added.");
         } catch (error) {
-            toast.dismissAll();
+            toast.dismiss();
             toast.error(error?.response?.data?.message || error.message);
             console.error(error);
         }
     };
 
-    useEffect(() => { fetchTaskDetails(); }, [taskId]);
+    // Re-fetch task when Redux updates or ID changes
+    useEffect(() => { 
+        fetchTaskDetails(); 
+    }, [taskId, projectId, currentWorkspace]);
 
+    // Polling for comments
     useEffect(() => {
-        if (taskId && task) {
+        if (taskId) {
             fetchComments();
             const interval = setInterval(() => { fetchComments(); }, 10000);
             return () => clearInterval(interval);
         }
-    }, [taskId, task]);
+    }, [taskId]);
+
+    // Helper for date formatting
+    const formatDate = (date, strFormat) => {
+        if (!date) return "N/A";
+        try {
+            return format(new Date(date), strFormat);
+        } catch (e) {
+            return "Invalid Date";
+        }
+    };
 
     if (loading) return <div className="text-gray-500 dark:text-zinc-400 px-4 py-6">Loading task details...</div>;
-    if (!task) return <div className="text-red-500 px-4 py-6">Task not found.</div>;
+    
+    // If loading finished but no task found
+    if (!loading && !task) return <div className="text-red-500 px-4 py-6">Task not found. Please refresh.</div>;
 
     return (
         <div className="flex flex-col-reverse lg:flex-row gap-6 sm:p-4 text-gray-900 dark:text-zinc-100 max-w-6xl mx-auto">
@@ -108,7 +127,7 @@ const TaskDetails = () => {
                                             <img src={comment.user.image} alt="avatar" className="size-5 rounded-full" />
                                             <span className="font-medium text-gray-900 dark:text-white">{comment.user.name}</span>
                                             <span className="text-xs text-gray-400 dark:text-zinc-600">
-                                                • {format(new Date(comment.createdAt), "dd MMM yyyy, HH:mm")}
+                                                • {formatDate(comment.createdAt, "dd MMM yyyy, HH:mm")}
                                             </span>
                                         </div>
                                         <p className="text-sm text-gray-900 dark:text-zinc-200">{comment.content}</p>
@@ -168,7 +187,7 @@ const TaskDetails = () => {
                         </div>
                         <div className="flex items-center gap-2">
                             <CalendarIcon className="size-4 text-gray-500 dark:text-zinc-500" />
-                            Due : {format(new Date(task.due_date), "dd MMM yyyy")}
+                            Due : {formatDate(task.due_date, "dd MMM yyyy")}
                         </div>
                     </div>
                 </div>
@@ -178,7 +197,7 @@ const TaskDetails = () => {
                     <div className="p-4 rounded-md bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-200 border border-gray-300 dark:border-zinc-800 ">
                         <p className="text-xl font-medium mb-4">Project Details</p>
                         <h2 className="text-gray-900 dark:text-zinc-100 flex items-center gap-2"> <PenIcon className="size-4" /> {project.name}</h2>
-                        <p className="text-xs mt-3">Project Start Date: {format(new Date(project.start_date), "dd MMM yyyy")}</p>
+                        <p className="text-xs mt-3">Project Start Date: {formatDate(project.start_date, "dd MMM yyyy")}</p>
                         <div className="flex flex-wrap gap-4 text-sm text-gray-500 dark:text-zinc-400 mt-3">
                             <span>Status: {project.status}</span>
                             <span>Priority: {project.priority}</span>

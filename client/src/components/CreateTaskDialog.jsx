@@ -11,8 +11,11 @@ export default function CreateTaskDialog({ showCreateTask, setShowCreateTask, pr
 
     const { getToken } = useAuth()
     const dispatch = useDispatch()
+    
     const currentWorkspace = useSelector((state) => state.workspace?.currentWorkspace || null);
-    const project = currentWorkspace?.projects.find((p) => p.id === projectId);
+    
+    // Safety check: Find project safely
+    const project = currentWorkspace?.projects?.find((p) => p.id === projectId);
     const teamMembers = project?.members || [];
 
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -29,33 +32,39 @@ export default function CreateTaskDialog({ showCreateTask, setShowCreateTask, pr
     const handleSubmit = async (e) => {
         e.preventDefault();
         
-        // Validation check for backend requirements
+        // 1. Validation check
         if (!formData.assigneeId || !formData.due_date) {
             toast.error("Please select an assignee and a due date.");
             return;
         }
 
+        // 2. Crash Prevention: Ensure workspace exists
+        if (!currentWorkspace?.id) {
+            toast.error("Workspace information missing. Please refresh.");
+            return;
+        }
+
         setIsSubmitting(true)
         try {
-            // FIX IS HERE: Added parentheses () after getToken
             const token = await getToken(); 
 
             const { data } = await api.post(
                 '/api/tasks', 
-                { ...formData, workspaceId: currentWorkspace.id, projectId }, 
+                { 
+                    ...formData, 
+                    workspaceId: currentWorkspace.id, // Safe now due to check above
+                    projectId 
+                }, 
                 { headers: { Authorization: `Bearer ${token}` } } 
             );
 
             setShowCreateTask(false)
+            // Reset form
             setFormData({
-                title: "",
-                description: "",
-                type: "TASK",
-                status: "TODO",
-                priority: "MEDIUM",
-                assigneeId: "",
-                due_date: "",
+                title: "", description: "", type: "TASK", status: "TODO", 
+                priority: "MEDIUM", assigneeId: "", due_date: "",
             })
+            
             toast.success(data.message)
             dispatch(addTask(data.task))
         } catch (error) {
@@ -66,7 +75,9 @@ export default function CreateTaskDialog({ showCreateTask, setShowCreateTask, pr
         }
     };
 
-    return showCreateTask ? (
+    if (!showCreateTask) return null;
+
+    return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 dark:bg-black/60 backdrop-blur">
             <div className="bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg shadow-lg w-full max-w-md p-6 text-zinc-900 dark:text-white">
                 <h2 className="text-xl font-bold mb-4">Create New Task</h2>
@@ -134,12 +145,12 @@ export default function CreateTaskDialog({ showCreateTask, setShowCreateTask, pr
                                 value={formData.assigneeId} 
                                 onChange={(e) => setFormData({ ...formData, assigneeId: e.target.value })} 
                                 className="w-full rounded dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 px-3 py-2 text-zinc-900 dark:text-zinc-200 text-sm mt-1" 
-                                required // Backend requires this
+                                required
                             >
                                 <option value="">Select Assignee</option>
                                 {teamMembers.map((member) => (
-                                    <option key={member?.user.id} value={member?.user.id}>
-                                        {member?.user.email}
+                                    <option key={member?.user?.id} value={member?.user?.id}>
+                                        {member?.user?.email || "Unknown User"}
                                     </option>
                                 ))}
                             </select>
@@ -170,7 +181,7 @@ export default function CreateTaskDialog({ showCreateTask, setShowCreateTask, pr
                                 onChange={(e) => setFormData({ ...formData, due_date: e.target.value })} 
                                 min={new Date().toISOString().split('T')[0]} 
                                 className="w-full rounded dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 px-3 py-2 text-zinc-900 dark:text-zinc-200 text-sm mt-1" 
-                                required // Backend requires this
+                                required
                             />
                         </div>
                         {formData.due_date && (
@@ -192,5 +203,5 @@ export default function CreateTaskDialog({ showCreateTask, setShowCreateTask, pr
                 </form>
             </div>
         </div>
-    ) : null;
+    );
 }

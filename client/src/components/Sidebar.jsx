@@ -8,7 +8,7 @@ import { useClerk } from '@clerk/clerk-react'
 
 const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
 
-    const {openUserProfile}=useClerk()
+    const { openUserProfile } = useClerk()
 
     const menuItems = [
         { name: 'Dashboard', href: '/', icon: LayoutDashboardIcon },
@@ -20,6 +20,9 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
 
     useEffect(() => {
         function handleClickOutside(event) {
+            // Only close on mobile (when sidebar is absolute)
+            if (window.innerWidth >= 640) return;
+
             if (sidebarRef.current && !sidebarRef.current.contains(event.target)) {
                 setIsSidebarOpen(false);
             }
@@ -29,7 +32,12 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
     }, [setIsSidebarOpen]);
 
     return (
-        <div ref={sidebarRef} className={`z-10 bg-white dark:bg-zinc-900 min-w-68 flex flex-col h-screen border-r border-gray-200 dark:border-zinc-800 max-sm:absolute transition-all ${isSidebarOpen ? 'left-0' : '-left-full'} `} >
+        <div 
+            ref={sidebarRef} 
+            className={`z-20 bg-white dark:bg-zinc-900 w-64 flex-shrink-0 flex flex-col h-screen border-r border-gray-200 dark:border-zinc-800 
+            fixed sm:static transition-all duration-300 ease-in-out
+            ${isSidebarOpen ? 'left-0' : '-left-full sm:left-0'}`} 
+        >
             <WorkspaceDropdown />
             <hr className='border-gray-200 dark:border-zinc-800' />
             <div className='flex-1 overflow-y-scroll no-scrollbar flex flex-col'>
@@ -49,10 +57,7 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
                     <MyTasksSidebar />
                     <ProjectSidebar />
                 </div>
-
-
             </div>
-
         </div>
     )
 }

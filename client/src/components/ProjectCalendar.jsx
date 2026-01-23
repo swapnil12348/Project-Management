@@ -21,20 +21,33 @@ const ProjectCalendar = ({ tasks }) => {
     const [currentMonth, setCurrentMonth] = useState(new Date());
 
     const today = new Date();
-    const getTasksForDate = (date) => tasks.filter((task) => isSameDay(task.due_date, date));
+
+    // Helper to safely parse dates
+    const safeDate = (d) => d ? new Date(d) : null;
+
+    // FIX: Added safety check for task.due_date
+    const getTasksForDate = (date) => tasks.filter((task) => {
+        const d = safeDate(task.due_date);
+        return d && isSameDay(d, date);
+    });
 
     const upcomingTasks = tasks
-        .filter((task) => task.due_date && !isBefore(task.due_date, today) && task.status !== "DONE")
-        .sort((a, b) => new Date(a.due_date) - new Date(b.due_date))
+        .filter((task) => {
+            const d = safeDate(task.due_date);
+            return d && !isBefore(d, today) && task.status !== "DONE";
+        })
+        .sort((a, b) => safeDate(a.due_date) - safeDate(b.due_date))
         .slice(0, 5);
 
-    const overdueTasks = tasks.filter((task) => task.due_date && isBefore(task.due_date, today) && task.status !== "DONE");
+    const overdueTasks = tasks.filter((task) => {
+        const d = safeDate(task.due_date);
+        return d && isBefore(d, today) && task.status !== "DONE";
+    });
 
     const daysInMonth = eachDayOfInterval({
         start: startOfMonth(currentMonth),
         end: endOfMonth(currentMonth),
     });
-
 
     const handleMonthChange = (direction) => {
         setCurrentMonth((prev) => (direction === "next" ? addMonths(prev, 1) : subMonths(prev, 1)));
@@ -44,7 +57,7 @@ const ProjectCalendar = ({ tasks }) => {
         <div className="grid lg:grid-cols-3 gap-6">
             {/* Calendar View */}
             <div className="lg:col-span-2 ">
-                <div className="not-dark:bg-white dark:bg-gradient-to-br dark:from-zinc-800/70 dark:to-zinc-900/50 border border-zinc-300 dark:border-zinc-800 rounded-lg p-4">
+                <div className="bg-white dark:bg-gradient-to-br dark:from-zinc-800/70 dark:to-zinc-900/50 border border-zinc-300 dark:border-zinc-800 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-zinc-900 dark:text-white text-md flex gap-2 items-center max-sm:hidden">
                             <CalendarIcon className="size-5" /> Task Calendar
@@ -70,11 +83,11 @@ const ProjectCalendar = ({ tasks }) => {
                         {daysInMonth.map((day) => {
                             const dayTasks = getTasksForDate(day);
                             const isSelected = isSameDay(day, selectedDate);
-                            const hasOverdue = dayTasks.some((t) => t.status !== "DONE" && isBefore(t.due_date, today));
+                            const hasOverdue = dayTasks.some((t) => t.status !== "DONE" && safeDate(t.due_date) && isBefore(safeDate(t.due_date), today));
 
                             return (
                                 <button
-                                    key={day}
+                                    key={day.toISOString()} // Unique key fix
                                     onClick={() => setSelectedDate(day)}
                                     className={`sm:h-14 rounded-md flex flex-col items-center justify-center text-sm
                                     ${isSelected ? "bg-blue-200 text-blue-900 dark:bg-blue-600 dark:text-white" : "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/40 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"}
@@ -92,7 +105,7 @@ const ProjectCalendar = ({ tasks }) => {
 
                 {/* Tasks for Selected Day */}
                 {getTasksForDate(selectedDate).length > 0 && (
-                    <div className=" not-dark:bg-white mt-6 dark:bg-gradient-to-br dark:from-zinc-800/70 dark:to-zinc-900/50 border border-zinc-300 dark:border-zinc-800 rounded-lg p-4">
+                    <div className="bg-white mt-6 dark:bg-gradient-to-br dark:from-zinc-800/70 dark:to-zinc-900/50 border border-zinc-300 dark:border-zinc-800 rounded-lg p-4">
                         <h3 className="text-zinc-900 dark:text-white text-lg mb-3">
                             Tasks for {format(selectedDate, "MMM d, yyyy")}
                         </h3>
@@ -146,7 +159,7 @@ const ProjectCalendar = ({ tasks }) => {
                                             {task.type}
                                         </span>
                                     </div>
-                                    <p className="text-xs text-zinc-600 dark:text-zinc-400">{format(task.due_date, "MMM d")}</p>
+                                    <p className="text-xs text-zinc-600 dark:text-zinc-400">{format(new Date(task.due_date), "MMM d")}</p>
                                 </div>
                             ))}
                         </div>
@@ -169,7 +182,7 @@ const ProjectCalendar = ({ tasks }) => {
                                         </span>
                                     </div>
                                     <p className="text-xs text-red-600 dark:text-red-300">
-                                        Due {format(task.due_date, "MMM d")}
+                                        Due {format(new Date(task.due_date), "MMM d")}
                                     </p>
                                 </div>
                             ))}

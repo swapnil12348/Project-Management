@@ -67,14 +67,16 @@ const ProjectTasks = ({ tasks }) => {
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
-            let updatedTask = structuredClone(tasks.find((t) => t.id === taskId));
-            updatedTask.status = newStatus;
+            // Safer clone
+            const task = tasks.find((t) => t.id === taskId);
+            const updatedTask = { ...task, status: newStatus };
+            
             dispatch(updateTask(updatedTask));
 
-            toast.dismissAll();
+            toast.dismiss();
             toast.success("Task status updated successfully");
         } catch (error) {
-            toast.dismissAll();
+            toast.dismiss();
             toast.error(error?.response?.data?.message || error.message);
         }
     };
@@ -88,26 +90,31 @@ const ProjectTasks = ({ tasks }) => {
 
             toast.loading("Deleting tasks...");
 
-            // FIX: Match backend DELETE route structure
-            // 1. Method: api.delete
-            // 2. URL: /api/tasks (no /delete)
-            // 3. Payload: Passed inside 'data' property
-            // 4. Key: 'taskIds' (matches backend controller)
             await api.delete('/api/tasks', {
                 headers: { Authorization: `Bearer ${token}` },
                 data: { taskIds: selectedTasks } 
             });
 
             dispatch(deleteTask(selectedTasks));
-            setSelectedTasks([]); // Clear selection after successful delete
+            setSelectedTasks([]); 
 
-            toast.dismissAll();
+            toast.dismiss();
             toast.success("Tasks deleted successfully");
         } catch (error) {
-            toast.dismissAll();
+            toast.dismiss();
             toast.error(error?.response?.data?.message || error.message);
         }
     };
+
+    // Helper for safe date formatting
+    const formatDate = (date) => {
+        if (!date) return "-";
+        try {
+            return format(new Date(date), "dd MMMM");
+        } catch (e) {
+            return "-";
+        }
+    }
 
     return (
         <div>
@@ -149,7 +156,6 @@ const ProjectTasks = ({ tasks }) => {
                     );
                 })}
 
-                {/* Reset filters */}
                 {(filters.status || filters.type || filters.priority || filters.assignee) && (
                     <button type="button" onClick={() => setFilters({ status: "", type: "", priority: "", assignee: "" })} className="px-3 py-1 flex items-center gap-2 rounded bg-gradient-to-br from-purple-400 to-purple-500 text-zinc-100 dark:text-zinc-200 text-sm transition-colors" >
                         <XIcon className="size-3" /> Reset
@@ -172,7 +178,7 @@ const ProjectTasks = ({ tasks }) => {
                             <thead className="text-xs uppercase dark:bg-zinc-800/70 text-zinc-500 dark:text-zinc-400 ">
                                 <tr>
                                     <th className="pl-2 pr-1">
-                                        <input onChange={() => selectedTasks.length > 1 ? setSelectedTasks([]) : setSelectedTasks(tasks.map((t) => t.id))} checked={selectedTasks.length === tasks.length} type="checkbox" className="size-3 accent-zinc-600 dark:accent-zinc-500" />
+                                        <input onChange={() => selectedTasks.length > 1 ? setSelectedTasks([]) : setSelectedTasks(tasks.map((t) => t.id))} checked={selectedTasks.length === tasks.length && tasks.length > 0} type="checkbox" className="size-3 accent-zinc-600 dark:accent-zinc-500" />
                                     </th>
                                     <th className="px-4 pl-0 py-3">Title</th>
                                     <th className="px-4 py-3">Type</th>
@@ -206,7 +212,7 @@ const ProjectTasks = ({ tasks }) => {
                                                     </span>
                                                 </td>
                                                 <td onClick={e => e.stopPropagation()} className="px-4 py-2">
-                                                    <select name="status" onChange={(e) => handleStatusChange(task.id, e.target.value)} value={task.status} className="group-hover:ring ring-zinc-100 outline-none px-2 pr-4 py-1 rounded text-sm text-zinc-900 dark:text-zinc-200 cursor-pointer" >
+                                                    <select name="status" onChange={(e) => handleStatusChange(task.id, e.target.value)} value={task.status} className="group-hover:ring ring-zinc-100 outline-none px-2 pr-4 py-1 rounded text-sm text-zinc-900 dark:text-zinc-200 cursor-pointer bg-transparent" >
                                                         <option value="TODO">To Do</option>
                                                         <option value="IN_PROGRESS">In Progress</option>
                                                         <option value="DONE">Done</option>
@@ -214,14 +220,14 @@ const ProjectTasks = ({ tasks }) => {
                                                 </td>
                                                 <td className="px-4 py-2">
                                                     <div className="flex items-center gap-2">
-                                                        <img src={task.assignee?.image} className="size-5 rounded-full" alt="avatar" />
+                                                        <img src={task.assignee?.image} className="size-5 rounded-full" alt="" />
                                                         {task.assignee?.name || "-"}
                                                     </div>
                                                 </td>
                                                 <td className="px-4 py-2">
                                                     <div className="flex items-center gap-1 text-zinc-600 dark:text-zinc-400">
                                                         <CalendarIcon className="size-4" />
-                                                        {format(new Date(task.due_date), "dd MMMM")}
+                                                        {formatDate(task.due_date)}
                                                     </div>
                                                 </td>
                                             </tr>
@@ -246,10 +252,10 @@ const ProjectTasks = ({ tasks }) => {
                                 const { background, prioritycolor } = priorityTexts[task.priority] || {};
 
                                 return (
-                                    <div key={task.id} className=" dark:bg-gradient-to-br dark:from-zinc-800/70 dark:to-zinc-900/50 border border-zinc-300 dark:border-zinc-800 rounded-lg p-4 flex flex-col gap-2">
+                                    <div key={task.id} className=" dark:bg-gradient-to-br dark:from-zinc-800/70 dark:to-zinc-900/50 border border-zinc-300 dark:border-zinc-800 rounded-lg p-4 flex flex-col gap-2" onClick={() => navigate(`/taskDetails?projectId=${task.projectId}&taskId=${task.id}`)}>
                                         <div className="flex items-center justify-between">
                                             <h3 className="text-zinc-900 dark:text-zinc-200 text-sm font-semibold">{task.title}</h3>
-                                            <input type="checkbox" className="size-4 accent-zinc-600 dark:accent-zinc-500" onChange={() => selectedTasks.includes(task.id) ? setSelectedTasks(selectedTasks.filter((i) => i !== task.id)) : setSelectedTasks((prev) => [...prev, task.id])} checked={selectedTasks.includes(task.id)} />
+                                            <input type="checkbox" className="size-4 accent-zinc-600 dark:accent-zinc-500" onClick={(e) => e.stopPropagation()} onChange={() => selectedTasks.includes(task.id) ? setSelectedTasks(selectedTasks.filter((i) => i !== task.id)) : setSelectedTasks((prev) => [...prev, task.id])} checked={selectedTasks.includes(task.id)} />
                                         </div>
 
                                         <div className="text-xs text-zinc-600 dark:text-zinc-400 flex items-center gap-2">
@@ -263,7 +269,7 @@ const ProjectTasks = ({ tasks }) => {
                                             </span>
                                         </div>
 
-                                        <div>
+                                        <div onClick={(e) => e.stopPropagation()}>
                                             <label className="text-zinc-600 dark:text-zinc-400 text-xs">Status</label>
                                             <select name="status" onChange={(e) => handleStatusChange(task.id, e.target.value)} value={task.status} className="w-full mt-1 bg-zinc-100 dark:bg-zinc-800 ring-1 ring-zinc-300 dark:ring-zinc-700 outline-none px-2 py-1 rounded text-sm text-zinc-900 dark:text-zinc-200" >
                                                 <option value="TODO">To Do</option>
@@ -273,13 +279,13 @@ const ProjectTasks = ({ tasks }) => {
                                         </div>
 
                                         <div className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
-                                            <img src={task.assignee?.image} className="size-5 rounded-full" alt="avatar" />
+                                            <img src={task.assignee?.image} className="size-5 rounded-full" alt="" />
                                             {task.assignee?.name || "-"}
                                         </div>
 
                                         <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
                                             <CalendarIcon className="size-4" />
-                                            {format(new Date(task.due_date), "dd MMMM")}
+                                            {formatDate(task.due_date)}
                                         </div>
                                     </div>
                                 );

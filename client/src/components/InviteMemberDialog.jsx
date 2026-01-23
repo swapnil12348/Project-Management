@@ -4,10 +4,9 @@ import { useSelector } from "react-redux";
 import { useOrganization } from "@clerk/clerk-react";
 import toast from "react-hot-toast";
 
-
 const InviteMemberDialog = ({ isDialogOpen, setIsDialogOpen }) => {
 
-    const {organization}=useOrganization()
+    const { organization, isLoaded } = useOrganization(); // Added isLoaded
 
     const currentWorkspace = useSelector((state) => state.workspace?.currentWorkspace || null);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -18,37 +17,48 @@ const InviteMemberDialog = ({ isDialogOpen, setIsDialogOpen }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        
+        if (!organization) {
+            return toast.error("Organization not loaded");
+        }
+
         setIsSubmitting(true);
 
         try {
-            await organization.inviteMember({emailAddress: formData.email, role:formData.role})
-            toast.success("invitation sent successfully")
-            setIsDialogOpen(false)
+            await organization.inviteMember({ 
+                emailAddress: formData.email, 
+                role: formData.role 
+            });
+            toast.success("Invitation sent successfully");
+            setFormData({ email: "", role: "org:member" }); // Reset form
+            setIsDialogOpen(false);
         } catch (error) {
-            console.log(error)
-            toast.error(error.response?.data?.message || error.message)
-            
-        }finally{
-            setIsSubmitting(false)
+            console.error(error);
+            // Clerk errors are specific
+            const msg = error.errors?.[0]?.message || error.message || "Failed to send invite";
+            toast.error(msg);
+        } finally {
+            setIsSubmitting(false);
         }
-
     };
 
     if (!isDialogOpen) return null;
 
+    // Safety: Don't render if organization isn't loaded yet
+    if (!isLoaded || !currentWorkspace) return null;
+
     return (
         <div className="fixed inset-0 bg-black/20 dark:bg-black/50 backdrop-blur flex items-center justify-center z-50">
+            {/* ... rest of your JSX is perfect ... */}
             <div className="bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl p-6 w-full max-w-md text-zinc-900 dark:text-zinc-200">
                 {/* Header */}
                 <div className="mb-4">
                     <h2 className="text-xl font-bold flex items-center gap-2">
                         <UserPlus className="size-5 text-zinc-900 dark:text-zinc-200" /> Invite Team Member
                     </h2>
-                    {currentWorkspace && (
-                        <p className="text-sm text-zinc-700 dark:text-zinc-400">
-                            Inviting to workspace: <span className="text-blue-600 dark:text-blue-400">{currentWorkspace.name}</span>
-                        </p>
-                    )}
+                    <p className="text-sm text-zinc-700 dark:text-zinc-400">
+                        Inviting to workspace: <span className="text-blue-600 dark:text-blue-400">{currentWorkspace.name}</span>
+                    </p>
                 </div>
 
                 {/* Form */}
@@ -78,7 +88,7 @@ const InviteMemberDialog = ({ isDialogOpen, setIsDialogOpen }) => {
                         <button type="button" onClick={() => setIsDialogOpen(false)} className="px-5 py-2 rounded text-sm border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition" >
                             Cancel
                         </button>
-                        <button type="submit" disabled={isSubmitting || !currentWorkspace} className="px-5 py-2 rounded text-sm bg-gradient-to-br from-blue-500 to-blue-600 text-white disabled:opacity-50 hover:opacity-90 transition" >
+                        <button type="submit" disabled={isSubmitting} className="px-5 py-2 rounded text-sm bg-gradient-to-br from-blue-500 to-blue-600 text-white disabled:opacity-50 hover:opacity-90 transition" >
                             {isSubmitting ? "Sending..." : "Send Invitation"}
                         </button>
                     </div>

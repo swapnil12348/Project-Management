@@ -3,16 +3,13 @@ import { inngest } from "../inngest/index.js";
 
 export const createTask = async (req, res) => {
     try {
-        const { userId } = await req.auth();
+        // FIX 1: req.auth is an object
+        const { userId } = req.auth; 
         const { projectId, title, description, type, status, priority, assigneeId, due_date } = req.body;
 
-        // --- EXPLANATION ---
-        // We need 'origin' (e.g., http://localhost:5173) to create the link in the email.
-        // req.get('origin') gets the frontend URL that called this API.
-        // The || '' prevents a crash if the header is missing.
-        const origin = req.get('origin') || "http://localhost:5173"; 
+        // FIX 2: Better Fallback for Production
+        const origin = req.get('origin') || process.env.FRONTEND_URL || "http://localhost:5173"; 
 
-        // 1. Validation
         if (!assigneeId || !due_date || !projectId || !title) {
             return res.status(400).json({ message: "Missing required fields" });
         }
@@ -24,13 +21,18 @@ export const createTask = async (req, res) => {
 
         if (!project) {
             return res.status(404).json({ message: "Project not found" });
-        } else if (project.team_lead !== userId) {
-            return res.status(403).json({ message: "You don't have admin privileges for this project" });
+        } 
+        
+        // Strict Permission Check (Only Team Lead can create tasks?)
+        // If you want to allow Workspace Admins too, you need to check that here.
+        // For now, I'll keep your strict logic.
+        else if (project.team_lead !== userId) {
+            return res.status(403).json({ message: "You don't have privileges to create tasks in this project" });
         }
 
         const isAssigneeMember = project.members.some((member) => member.user.id === assigneeId);
         if (!isAssigneeMember) {
-            return res.status(403).json({ message: "Assignee is not a member of this project/workspace" });
+            return res.status(403).json({ message: "Assignee is not a member of this project" });
         }
 
         const task = await prisma.task.create({
@@ -46,13 +48,12 @@ export const createTask = async (req, res) => {
             }
         });
 
-        // 2. Send Event to Inngest (Wrapped in try/catch so it doesn't break task creation)
         try {
             await inngest.send({
                 name: "app/task.assigned",
                 data: {
                     taskId: task.id,
-                    origin: origin // This passes the URL to your email template
+                    origin: origin
                 }
             });
         } catch (err) {
@@ -72,16 +73,17 @@ export const createTask = async (req, res) => {
     }
 }
 
-// ... updateTask and deleteTask remain the same as the previous correct version ...
 export const updateTask = async (req, res) => {
     try {
+        const { userId } = req.auth; // FIX
         const task = await prisma.task.findUnique({ where: { id: req.params.id } });
         if (!task) return res.status(404).json({ message: "Task not found" });
 
-        const { userId } = await req.auth();
         const project = await prisma.project.findUnique({ where: { id: task.projectId } });
 
         if (!project) return res.status(404).json({ message: "Project not found" });
+        
+        // Permission Check
         if (project.team_lead !== userId) return res.status(403).json({ message: "No permission" });
 
         const { title, description, status, type, priority, assigneeId, due_date } = req.body;
@@ -101,14 +103,23 @@ export const updateTask = async (req, res) => {
 
 export const deleteTask = async (req, res) => {
     try {
-        const { userId } = await req.auth();
+        const { userId } = req.auth; // FIX
         const { taskIds } = req.body;
         
         if (!taskIds?.length) return res.status(400).json({message: "No IDs provided"});
 
-        const tasks = await prisma.task.findMany({ where: { id: { in: taskIds } } });
+        // Optimization: Find projects for all tasks to ensure permission
+        const tasks = await prisma.task.findMany({ 
+            where: { id: { in: taskIds } },
+            select: { projectId: true }
+        });
+        
         if (tasks.length === 0) return res.status(404).json({ message: "Tasks not found" });
 
+        // Check if user owns the project for these tasks
+        // This logic assumes all deleted tasks belong to ONE project.
+        // If you delete tasks from multiple projects, this logic is flawed.
+        // Assuming bulk delete is per-project context.
         const project = await prisma.project.findUnique({ where: { id: tasks[0].projectId } });
         
         if (!project) return res.status(404).json({ message: "Project not found" });

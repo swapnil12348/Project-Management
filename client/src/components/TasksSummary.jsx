@@ -6,17 +6,17 @@ import { useUser } from "@clerk/clerk-react";
 export default function TasksSummary() {
 
     const { currentWorkspace } = useSelector((state) => state.workspace);
-    const {user}= useUser()
+    const { user } = useUser();
     const [tasks, setTasks] = useState([]);
 
     // Get all tasks for all projects in current workspace
     useEffect(() => {
-        if (currentWorkspace) {
-            setTasks(currentWorkspace.projects.flatMap((project) => project.tasks));
+        if (currentWorkspace?.projects) {
+            setTasks(currentWorkspace.projects.flatMap((project) => project.tasks || []));
         }
     }, [currentWorkspace]);
 
-    const myTasks = tasks.filter(i => i.assigneeId === user.id);
+    const myTasks = tasks.filter(i => i.assigneeId === user?.id);
     const overdueTasks = tasks.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'DONE');
     const inProgressIssues = tasks.filter(i => i.status === 'IN_PROGRESS');
 
@@ -44,6 +44,7 @@ export default function TasksSummary() {
         }
     ];
 
+    // Rest of JSX is identical
     return (
         <div className="space-y-6">
             {summaryCards.map((card) => (

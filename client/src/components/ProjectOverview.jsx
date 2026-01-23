@@ -64,7 +64,8 @@ const ProjectOverview = () => {
                                     </div>
                                     <div className="flex items-center gap-2 ml-4">
                                         <span className={`text-xs px-2 py-1 rounded ${statusColors[project.status]}`}>
-                                            {project.status.replace('_', ' ').replaceAll(/\b\w/g, c => c.toUpperCase())}
+                                            {/* Fix: Using CSS capitalize instead of regex */}
+                                            <span className="capitalize">{project.status.replace('_', ' ').toLowerCase()}</span>
                                         </span>
                                         <div className={`w-2 h-2 rounded-full border-2 ${priorityColors[project.priority]}`} />
                                     </div>
@@ -78,6 +79,7 @@ const ProjectOverview = () => {
                                                 {project.members.length} members
                                             </div>
                                         )}
+                                        {/* FIX: Ensure date exists before formatting */}
                                         {project.end_date && (
                                             <div className="flex items-center gap-1">
                                                 <Calendar className="w-3 h-3" />
